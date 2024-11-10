@@ -1,0 +1,108 @@
+# templates/index.html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Query Manager</title>
+    <style>
+        .query-list {
+            margin: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+        }
+        .query-item {
+            margin: 10px 0;
+            padding: 10px;
+            border: 1px solid #eee;
+        }
+        .input-form {
+            margin: 20px;
+            padding: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="input-form">
+        <h3>Add New Query</h3>
+        <input type="text" id="queryTitle" placeholder="Query Title">
+        <textarea id="queryBody" placeholder="Query Body"></textarea>
+        <button onclick="addQuery()">Add Query</button>
+    </div>
+
+    <div class="query-list" id="queryList">
+        <!-- Queries will be displayed here -->
+    </div>
+
+    <script>
+        // Load queries on page load
+        fetch('/queries')
+            .then(response => response.json())
+            .then(queries => displayQueries(queries));
+
+        function displayQueries(queries) {
+            const queryList = document.getElementById('queryList');
+            queryList.innerHTML = '';
+            queries.forEach(query => {
+                const div = document.createElement('div');
+                div.className = 'query-item';
+                div.innerHTML = `
+                    <h4>${query.title}</h4>
+                    <p>${query.body}</p>
+                    <button onclick="runQuery(${query.id})">Run Query</button>
+                    <button onclick="deleteQuery(${query.id})">Delete</button>
+                    ${query.last_run ? '<p>Last run: ' + query.last_run + '</p>' : ''}
+                `;
+                queryList.appendChild(div);
+            });
+        }
+
+        function addQuery() {
+            const title = document.getElementById('queryTitle').value;
+            const body = document.getElementById('queryBody').value;
+            
+            fetch('/queries', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ title, body })
+            })
+            .then(response => response.json())
+            .then(() => {
+                // Reload queries
+                fetch('/queries')
+                    .then(response => response.json())
+                    .then(queries => displayQueries(queries));
+                
+                // Clear input fields
+                document.getElementById('queryTitle').value = '';
+                document.getElementById('queryBody').value = '';
+            });
+        }
+
+        function deleteQuery(id) {
+            fetch(`/queries/${id}`, {
+                method: 'DELETE'
+            })
+            .then(() => {
+                fetch('/queries')
+                    .then(response => response.json())
+                    .then(queries => displayQueries(queries));
+            });
+        }
+
+        function runQuery(id) {
+            fetch(`/run_query/${id}`, {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert('Query response: ' + data.response);
+                // Reload queries to update last_run time
+                fetch('/queries')
+                    .then(response => response.json())
+                    .then(queries => displayQueries(queries));
+            });
+        }
+    </script>
+</body>
+</html>
